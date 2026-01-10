@@ -19,7 +19,7 @@
 :root {
   --bg-color: #f8f9fb;
   --card-bg: #ffffff;
-  --primary: #4f46e5;
+  /* --primary 在 @layer base 中定义，使用 HSL 格式供 Tailwind 使用 */
   --success: #16a34a;
   --warning: #f59e0b;
   --danger: #dc2626;
@@ -205,4 +205,33 @@ nav .no-hover-effect:hover,
   background-image: inherit !important;
   color: inherit !important;
   opacity: 1 !important;
+}
+
+/* =========================
+       Hide Scrollbar
+       ========================= */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* =========================
+       Progress Bar Shimmer Animation
+       ========================= */
+.progress-bar-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
