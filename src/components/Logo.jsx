@@ -1,7 +1,11 @@
-import { motion } from "framer-motion";
+// import { motion } from "framer-motion";
 import { Flag, CheckCircle2, TrendingUp } from "lucide-react";
 
-export default function Logo({ size = "lg", animated = true, showTitle = false }) {
+export default function Logo({
+  size = "lg",
+  animated = true,
+  showTitle = false,
+}) {
   const sizeClasses = {
     sm: "w-8 h-8",
     md: "w-12 h-12",
@@ -127,7 +131,7 @@ export default function Logo({ size = "lg", animated = true, showTitle = false }
             ease: "linear",
           }}
         />
-        
+
         {/* 旗帜 - 中心，3D旋转 */}
         <motion.div
           className="absolute z-10"
@@ -215,7 +219,8 @@ export default function Logo({ size = "lg", animated = true, showTitle = false }
         <motion.div
           className="absolute inset-0 rounded-full"
           style={{
-            background: "radial-gradient(circle, rgba(79,70,229,0.3) 0%, transparent 70%)",
+            background:
+              "radial-gradient(circle, rgba(79,70,229,0.3) 0%, transparent 70%)",
             transform: "translateZ(-30px)",
             transformStyle: "preserve-3d",
           }}
@@ -241,10 +246,11 @@ export default function Logo({ size = "lg", animated = true, showTitle = false }
           transition={{ delay: 0.3, duration: 0.5 }}
           className="text-center w-full"
         >
-          <h1 
+          <h1
             className="text-2xl md:text-3xl font-bold"
             style={{
-              background: "linear-gradient(to right, hsl(220, 90%, 56%), hsl(270, 60%, 50%), hsl(330, 70%, 60%))",
+              background:
+                "linear-gradient(to right, hsl(220, 90%, 56%), hsl(270, 60%, 50%), hsl(330, 70%, 60%))",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",

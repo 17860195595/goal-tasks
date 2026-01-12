@@ -3,8 +3,9 @@ import { useLLMGeneration } from "./useLLMGeneration";
 import { format, startOfDay, addDays } from "date-fns";
 
 // 功能开关：是否启用 LLM（可通过环境变量控制）
-const ENABLE_LLM = import.meta.env.VITE_ENABLE_LLM !== 'false' && 
-                   import.meta.env.VITE_API_BASE_URL;
+const ENABLE_LLM =
+  import.meta.env.VITE_ENABLE_LLM !== "false" &&
+  import.meta.env.VITE_API_BASE_URL;
 
 // 根据周期生成任务列表（分阶段）- 降级方案
 const generateTasksByPeriod = (goalDescription, period) => {
@@ -121,6 +122,51 @@ const generateTasksByPeriod = (goalDescription, period) => {
   return tasks;
 };
 
+// ✅ 新增：把 tasks（阶段任务/普通任务）转换成真正按天的 dailyTasks（Keep 风格）
+function toDailyTasks(rawTasks, startDate, period) {
+  // 如果 LLM 已经按天返回：[{date, tasks:[...]}] 就直接标准化
+  if (
+    Array.isArray(rawTasks) &&
+    rawTasks.length > 0 &&
+    rawTasks[0]?.date &&
+    Array.isArray(rawTasks[0]?.tasks)
+  ) {
+    return rawTasks.map((d) => ({
+      date: d.date,
+      tasks: d.tasks.map((t, idx) => ({
+        id: t.id ?? `${d.date}-${idx}`,
+        title: t.title ?? t.text ?? "Task",
+        minutes: t.minutes ?? 30,
+        completed: !!t.completed,
+      })),
+    }));
+  }
+
+  // 否则 rawTasks 是一堆任务（比如阶段任务），按天分配
+  const tasksPerDay = 3; // 你想每天显示几条就改这里
+  const daily = [];
+  const start = new Date(startDate + "T00:00:00");
+
+  for (let i = 0; i < period; i++) {
+    const date = format(addDays(start, i), "yyyy-MM-dd");
+
+    const dayTasks = [];
+    for (let k = 0; k < tasksPerDay; k++) {
+      const pick = rawTasks[(i * tasksPerDay + k) % rawTasks.length];
+      dayTasks.push({
+        id: pick?.id ?? `${date}-${k}`,
+        title: pick?.title ?? pick?.text ?? "Task",
+        minutes: pick?.minutes ?? 30,
+        completed: false,
+      });
+    }
+
+    daily.push({ date, tasks: dayTasks });
+  }
+
+  return daily;
+}
+
 export function useGoalCreation() {
   const [goalInput, setGoalInput] = useState("");
   const [goalPeriod, setGoalPeriod] = useState("30");
@@ -163,14 +209,19 @@ export function useGoalCreation() {
     // 如果启用了 LLM，尝试使用 LLM 生成
     if (ENABLE_LLM) {
       try {
-        const tasks = await generateTasksWithLLM(goalInput, period, startDate, endDate);
+        const tasks = await generateTasksWithLLM(
+          goalInput,
+          period,
+          startDate,
+          endDate
+        );
         setGoalInfo(newGoalInfo);
         setLocalProgress(0); // 重置本地进度
         return tasks;
       } catch (error) {
         // LLM 生成失败，使用降级方案
-        console.warn('LLM 生成失败，使用本地模板:', error);
-        setLlmError(error.message || 'LLM 生成失败，已使用默认模板');
+        console.warn("LLM 生成失败，使用本地模板:", error);
+        setLlmError(error.message || "LLM 生成失败，已使用默认模板");
         setGoalInfo(newGoalInfo);
         // 返回本地生成的任务（降级方案）
         setLocalProgress(0); // 重置本地进度
@@ -182,47 +233,75 @@ export function useGoalCreation() {
       let currentLocalProgress = 0;
       const startTime = Date.now();
       const targetDuration = 1500; // 目标 1500ms 到达 98%
-      
+
       const progressInterval = setInterval(() => {
         const elapsed = Date.now() - startTime;
         const progressRatio = Math.min(elapsed / targetDuration, 0.98);
         const easedProgress = 1 - Math.pow(1 - progressRatio, 3); // cubic ease-out
         const targetProgress = easedProgress * 98;
-        
+
         setLocalProgress((prev) => {
           const newProgress = Math.max(prev, Math.min(targetProgress, 98));
           currentLocalProgress = newProgress;
           return newProgress;
         });
       }, 50);
-      
+
       // 模拟生成延迟（1-1.5秒）
       const delay = 1000 + Math.random() * 500;
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
       clearInterval(progressInterval);
-      
+
       // 快速完成到100%
       if (currentLocalProgress < 98) {
         setLocalProgress(98);
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
       setLocalProgress(100);
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       setGoalInfo(newGoalInfo);
       setLocalProgress(0);
       return generateTasksByPeriod(goalInput, period);
     }
   };
 
-  const handleCreateGoal = () => {
-    // TODO: 保存目标到后端
+  // const handleCreateGoal = () => {
+  //   // TODO: 保存目标到后端
+  //   setGoalCreated(true);
+  //   setTimeout(() => {
+  //     // 跳转到今日任务页面
+  //     window.location.href = "/today";
+  //   }, 1500);
+  // };
+  const handleCreateGoal = ({ tasks }) => {
+    if (!goalInfo || !tasks?.length) return;
+
+    const goal = {
+      id: crypto.randomUUID(),
+      title: goalInfo.description,
+      description: goalInfo.description,
+      period: goalInfo.period,
+      startDate: goalInfo.startDate,
+      endDate: goalInfo.endDate,
+
+      // ✅ 关键：存按天任务（Today/Calendar 都靠它）
+      dailyTasks: toDailyTasks(tasks, goalInfo.startDate, goalInfo.period),
+
+      // 可选：保留原 tasks 也行（以后调试用）
+      tasks,
+
+      createdAt: Date.now(),
+    };
+
+    const old = JSON.parse(localStorage.getItem("goals") || "[]");
+    localStorage.setItem("goals", JSON.stringify([goal, ...old]));
+
     setGoalCreated(true);
     setTimeout(() => {
-      // 跳转到今日任务页面
-      window.location.href = "/today";
-    }, 1500);
+      window.location.href = "/goals";
+    }, 800);
   };
 
   const resetGoal = () => {
@@ -252,4 +331,3 @@ export function useGoalCreation() {
     resetGoal,
   };
 }
-

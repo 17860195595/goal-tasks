@@ -34,7 +34,7 @@ export default function CreateGoal() {
     saveEditTask,
     cancelEdit,
     deleteTask,
-    addNewTask,
+    // addNewTask,
     addNewTaskToStage,
     setTasksData,
   } = useTaskManagement();
@@ -50,7 +50,6 @@ export default function CreateGoal() {
     setEditingTaskText("");
     cancelEdit(); // 取消任何正在进行的编辑
   };
-
 
   const handleGenerateWithTasks = async () => {
     const newTasks = await handleGenerate();
@@ -75,15 +74,15 @@ export default function CreateGoal() {
     }
   };
 
-  const completedCount = tasks.filter(t => t.completed).length;
+  const completedCount = tasks.filter((t) => t.completed).length;
   const totalCount = tasks.length;
 
   return (
-    <div className="bg-white flex flex-col relative overflow-hidden" style={{ height: '85vh' }}>
-      <CreateGoalHeader 
-        showBackButton={!isInitialState}
-        onBack={handleBack}
-      />
+    <div
+      className="bg-white flex flex-col relative overflow-hidden"
+      style={{ height: "85vh" }}
+    >
+      <CreateGoalHeader showBackButton={!isInitialState} onBack={handleBack} />
 
       <div className="flex-1 overflow-hidden px-4">
         <div className="max-w-md mx-auto h-full">
@@ -114,14 +113,12 @@ export default function CreateGoal() {
                 onAddNewToStage={addNewTaskToStage}
                 onRegenerate={handleRegenerate}
                 onKeyPress={handleKeyPress}
-                onCreateGoal={handleCreateGoal}
+                onCreateGoal={() => handleCreateGoal({ tasks })}
                 error={generationError}
               />
             )}
 
-            {goalCreated && (
-              <SuccessState key="success" />
-            )}
+            {goalCreated && <SuccessState key="success" />}
           </AnimatePresence>
         </div>
       </div>

@@ -1,12 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import {  Gauge, Contact,ClipboardList } from "lucide-react";
+import { Gauge, Contact, ClipboardList } from "lucide-react";
 
 const tabs = [
-  { to: "/today", label: "Today", icon: ClipboardList },
+  { to: "/goals", label: "Today", icon: ClipboardList },
   { to: "/create-goal", label: "CreateGoal", icon: Gauge },
   { to: "/calendar", label: "User", icon: Contact },
-    // { to: "/me", label: "Me", icon: User },
+  // { to: "/me", label: "Me", icon: User },
 ];
 
 // 这些页面不显示底部栏（比如创建目标/登录等）
