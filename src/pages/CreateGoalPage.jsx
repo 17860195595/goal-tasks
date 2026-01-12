@@ -1,99 +1,140 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useGoalCreation } from "@/hooks/useGoalCreation";
+import { useTaskManagement } from "@/hooks/useTaskManagement";
+import CreateGoalHeader from "@/components/create-goal/CreateGoalHeader";
+import EmptyState from "@/components/create-goal/EmptyState";
+import GeneratingState from "@/components/create-goal/GeneratingState";
+import SuccessState from "@/components/create-goal/SuccessState";
+import TaskList from "@/components/create-goal/TaskList";
+import GoalInputBar from "@/components/create-goal/GoalInputBar";
 
 export default function CreateGoal() {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const {
+    goalInput,
+    setGoalInput,
+    goalPeriod,
+    setGoalPeriod,
+    isGenerating,
+    goalInfo,
+    goalCreated,
+    error: generationError,
+    progress: generationProgress,
+    handleGenerate,
+    handleCreateGoal,
+    resetGoal,
+  } = useGoalCreation();
 
-  const totalDays = useMemo(() => {
-    if (!startDate || !endDate) return null;
+  const {
+    tasks,
+    editingTaskId,
+    editingTaskText,
+    setEditingTaskText,
+    toggleTask,
+    startEditTask,
+    saveEditTask,
+    cancelEdit,
+    deleteTask,
+    // addNewTask,
+    addNewTaskToStage,
+    setTasksData,
+  } = useTaskManagement();
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  // 判断是否在初始页面（不包含 tasks.length，因为重置时 tasks 可能还没清空）
+  const isInitialState = !goalInfo && !isGenerating && !goalCreated;
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
-      return null;
+  // 处理返回按钮点击
+  const handleBack = () => {
+    // 重置所有状态到初始页面
+    resetGoal();
+    setTasksData([]);
+    setEditingTaskText("");
+    cancelEdit(); // 取消任何正在进行的编辑
+  };
 
-    const diffMs = end.getTime() - start.getTime();
-    if (diffMs < 0) return null;
+  const handleGenerateWithTasks = async () => {
+    const newTasks = await handleGenerate();
+    if (newTasks) {
+      setTasksData(newTasks);
+    }
+  };
 
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-  }, [startDate, endDate]);
+  const handleRegenerate = async () => {
+    setTasksData([]);
+    await handleGenerateWithTasks();
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (editingTaskId) {
+        saveEditTask();
+      } else {
+        handleGenerateWithTasks();
+      }
+    }
+  };
+
+  const completedCount = tasks.filter((t) => t.completed).length;
+  const totalCount = tasks.length;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <Card className="w-full max-w-md rounded-2xl shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">Create a plan</CardTitle>
-        </CardHeader>
+    <div
+      className="bg-white flex flex-col relative overflow-hidden"
+      style={{ height: "85vh" }}
+    >
+      <CreateGoalHeader showBackButton={!isInitialState} onBack={handleBack} />
 
-        <CardContent className="space-y-4">
-          <div className="space-y-1">
-            <Label>Main goal</Label>
-            <Textarea placeholder="e.g., Complete React basics in 30 days" />
-          </div>
+      <div className="flex-1 overflow-hidden px-4">
+        <div className="max-w-md mx-auto h-full">
+          <AnimatePresence mode="wait">
+            {!goalInfo && !isGenerating && !goalCreated && (
+              <EmptyState key="empty" />
+            )}
 
-          <div className="space-y-1">
-            <Label>Final goal</Label>
-            <Textarea placeholder="e.g., Build and deploy a mini React app, arrive the co-op level" />
-          </div>
+            {isGenerating && (
+              <GeneratingState key="generating" progress={generationProgress} />
+            )}
 
-          <div className="space-y-1">
-            <Label>Current level</Label>
-            <Input placeholder="e.g., beginner / intermediate / advanced" />
-          </div>
-
-          <div className="space-y-1">
-            <Label>Time range</Label>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+            {goalInfo && tasks.length > 0 && !goalCreated && (
+              <TaskList
+                key="tasks"
+                goalInfo={goalInfo}
+                tasks={tasks}
+                completedCount={completedCount}
+                totalCount={totalCount}
+                editingTaskId={editingTaskId}
+                editingTaskText={editingTaskText}
+                onToggle={toggleTask}
+                onStartEdit={startEditTask}
+                onSaveEdit={saveEditTask}
+                onCancelEdit={cancelEdit}
+                onDelete={deleteTask}
+                onTextChange={setEditingTaskText}
+                onAddNewToStage={addNewTaskToStage}
+                onRegenerate={handleRegenerate}
+                onKeyPress={handleKeyPress}
+                onCreateGoal={() => handleCreateGoal({ tasks })}
+                error={generationError}
               />
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
+            )}
 
-            <p className="text-sm">
-              {totalDays === null
-                ? "Select start & end date"
-                : `Total: ${totalDays} day(s)`}
-            </p>
-          </div>
+            {goalCreated && <SuccessState key="success" />}
+          </AnimatePresence>
+        </div>
+      </div>
 
-          <div className="space-y-1">
-            <Label>average hours studied per day</Label>
-            <Input
-              type="number"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              min={0}
-              step={1}
-              onKeyDown={(e) => {
-                if (["e", "E", "+", "-", "."].includes(e.key))
-                  e.preventDefault();
-              }}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Button className="w-full text-black bg-white border">
-              submit
-            </Button>
-
-            <Button className="w-full text-black bg-white border">reset</Button>
-          </div>
-        </CardContent>
-      </Card>
+      {!goalInfo && !goalCreated && (
+        <GoalInputBar
+          value={goalInput}
+          onChange={(e) => setGoalInput(e.target.value)}
+          period={goalPeriod}
+          onPeriodChange={(e) => setGoalPeriod(e.target.value)}
+          onKeyPress={handleKeyPress}
+          onGenerate={handleGenerateWithTasks}
+          isGenerating={isGenerating}
+          disabled={isGenerating}
+        />
+      )}
     </div>
   );
 }
